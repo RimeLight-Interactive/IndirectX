@@ -17,11 +17,8 @@ type D3D11CreateDevice_fn = unsafe extern "system" fn(
     ppImmediateContext: *mut *mut std::ffi::c_void
 ) -> i32;
 
-static mut DEVICE_HOOK: Option<VTableHook<*mut c_void>> = None;
-static mut CONTEXT_HOOK: Option<VTableHook<*mut c_void>> = None;
-
 #[no_mangle]
-pub unsafe extern "C" fn f_create_device(
+pub unsafe extern "system" fn f_create_device(
     orig_func: usize,
     pAdapter: *mut c_void,
     DriverType: u32,
