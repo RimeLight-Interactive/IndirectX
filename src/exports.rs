@@ -29,7 +29,6 @@ macro_rules! naked_trampoline {
 }
 
 naked_trampoline!(D3D11CoreCreateDevice);
-naked_trampoline!(D3D11CreateDeviceAndSwapChain);
 naked_trampoline!(D3D11On12CreateDevice);
 
 // Main exports
@@ -72,6 +71,46 @@ pub unsafe extern "system" fn D3D11CreateDevice(
         pFeatureLevels,
         FeatureLevels,
         SDKVersion,
+        ppDevice,
+        pFeatureLevel,
+        ppImmediateContext
+    )
+}
+
+static mut D3_D11_CREATE_DEVICE_AND_SWAPCHAIN_ORIG_PTR: usize = 0;
+pub unsafe fn set_D3D11CreateDeviceAndSwapChain_orig(ptr: usize) {
+    unsafe {
+        D3_D11_CREATE_DEVICE_ORIG_PTR = ptr;
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "system" fn D3D11CreateDeviceAndSwapChain(
+    pAdapter: *mut c_void,
+    DriverType: u32,
+    Software: *mut c_void,
+    Flags: u32,
+    pFeatureLevels: *const u32,
+    FeatureLevels: u32,
+    SDKVersion: u32,
+    pSwapChainDesc: *mut c_void,
+    ppSwapChain: *mut *mut c_void,
+    ppDevice: *mut *mut c_void,
+    pFeatureLevel: *mut u32,
+    ppImmediateContext: *mut *mut c_void
+
+) -> i32 {
+    crate::proxy::f_create_device_and_swapchain(
+        D3_D11_CREATE_DEVICE_AND_SWAPCHAIN_ORIG_PTR,
+        pAdapter,
+        DriverType,
+        Software,
+        Flags,
+        pFeatureLevels,
+        FeatureLevels,
+        SDKVersion,
+        pSwapChainDesc,
+        ppSwapChain,
         ppDevice,
         pFeatureLevel,
         ppImmediateContext

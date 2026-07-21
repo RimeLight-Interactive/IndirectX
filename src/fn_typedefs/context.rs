@@ -1,3 +1,4 @@
+#[allow(unused)]
 use std::ffi::c_void;
 use windows::Win32::Graphics::{
     Direct3D11::*,
