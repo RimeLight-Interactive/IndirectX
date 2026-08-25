@@ -1,4 +1,5 @@
 use crate::fn_typedefs::swapchain::Present;
+use crate::log;
 use std::sync::OnceLock;
 use std::ffi::c_void;
 use windows::Win32::Graphics::Dxgi::Common::*;

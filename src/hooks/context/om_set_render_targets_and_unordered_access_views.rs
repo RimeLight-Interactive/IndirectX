@@ -1,4 +1,4 @@
-use crate::fn_typedefs::context::OMSetRenderTargetsAndUnorderedAccessViews;
+use crate::{fn_typedefs::context::OMSetRenderTargetsAndUnorderedAccessViews, log};
 use std::sync::OnceLock;
 use std::ffi::c_void;
 use windows::Win32::Graphics::{ Direct3D11::*, Dxgi::Common::DXGI_FORMAT};
@@ -23,6 +23,9 @@ pub fn hooked_func(
 ) {
     unsafe {
         let func = ORIG_FUNC.get().unwrap();
+        if !depthstencilview.is_null() {
+            log!("dsv: {}", depthstencilview as usize);
+        }
         func(this, a, rendertargetview, depthstencilview, b, c, unorderedaccessview, d)
     }
 }

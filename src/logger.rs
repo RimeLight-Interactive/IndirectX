@@ -36,57 +36,46 @@ impl Logger {
         }
     }
 
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
 
-    pub fn write_fmt(&mut self, args: fmt::Arguments) {
+    pub fn write_fmt(&mut self,  module: &'static str, args: fmt::Arguments) {
         if !self.enabled { return; }
 
         if self.async_mode {
             if let Some(tx) = &self.tx {
-                let _ = tx.send(format!("{}", args));
+                let _ = tx.send(format!("{}:{}", module, args));
             }
         } else if let Some(file) = &mut self.file {
-            let _ = writeln!(file, "{} {}", current_timestamp(), args);
+            let _ = writeln!(file, "{} {}:{}", current_timestamp(), module, args);
             let _ = file.flush();
         }
     }
 
-    pub fn log(&mut self, message: &str) {
-        self.write_fmt(format_args!("{}", message));
+    pub fn log(&mut self, module: &'static str, message: &str) {
+        self.write_fmt(module, format_args!("{}", message));
     }
 }
 
 static LOGGER: OnceLock<Mutex<Logger>> = OnceLock::new();
+pub static ENABLED: OnceLock<bool> = OnceLock::new();
 
 pub fn init<P: AsRef<Path>>(path: P, enabled: bool, async_mode: bool) -> io::Result<()> {
     let logger = Logger::create(path, enabled, async_mode)?;
     LOGGER
         .set(Mutex::new(logger))
         .map_err(|_| io::Error::new(io::ErrorKind::AlreadyExists, "Logger already initialized"))?;
+    let _ = ENABLED.set(enabled);
     Ok(())
 }
 
-pub fn enabled() -> bool {
-    LOGGER.get().map(|l| l.lock().unwrap().enabled()).unwrap_or(false)
-}
 
-pub fn write_fmt(args: fmt::Arguments) {
+pub fn write_fmt(module: &'static str, args: fmt::Arguments) {
     if let Some(mutex) = LOGGER.get() {
         if let Ok(mut logger) = mutex.lock() {
-            logger.write_fmt(args);
+            logger.write_fmt(module, args);
         }
     }
 }
 
-pub fn log(message: &str) {
-    if let Some(mutex) = LOGGER.get() {
-        if let Ok(mut logger) = mutex.lock() {
-            logger.log(message);
-        }
-    }
-}
 
 fn current_timestamp() -> String {
     let now = SystemTime::now();
@@ -97,8 +86,11 @@ fn current_timestamp() -> String {
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)+) => {
-        if $crate::logger::enabled() {
-            $crate::logger::write_fmt(format_args!($($arg)+));
+        if *$crate::logger::ENABLED.get().unwrap() {
+            $crate::logger::write_fmt(
+            concat!(module_path!(), ":", line!()), 
+            format_args!($($arg)+)
+            );
         }
     };
 }

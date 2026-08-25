@@ -1,9 +1,8 @@
 use crate::fn_typedefs::context::PSSetShader;
-use std::sync::OnceLock;
+use crate::special_ops::shader_manager::{get_ps_replacement, set_active_ps};
 use std::ffi::c_void;
-use windows::Win32::Graphics::{ Direct3D11::*, Dxgi::Common::DXGI_FORMAT};
-use windows_result::HRESULT;
-use windows::core::BOOL;
+use std::sync::OnceLock;
+use windows::Win32::Graphics::Direct3D11::{ID3D11ClassInstance, ID3D11PixelShader};
 
 static ORIG_FUNC: OnceLock<PSSetShader> = OnceLock::new();
 
@@ -18,7 +17,19 @@ pub fn hooked_func(
     a: u32,
 ) {
     unsafe {
-        let func = ORIG_FUNC.get().unwrap();
-        func(this, pixelshader, classinstance, a)
+        let func= ORIG_FUNC.get().unwrap();
+        let ctx_key = this as usize;
+        let original_shader = pixelshader;
+
+        // 1. First, track the incoming original shader for this context
+        set_active_ps(ctx_key, original_shader as usize);
+
+        // 2. Now query for a replacement (resolves via the newly tracked original shader)
+        let mut final_shader = original_shader;
+        if let Some(replacement_shader) = get_ps_replacement(ctx_key) {
+            final_shader = replacement_shader as *mut ID3D11PixelShader;
+        }
+        
+        func(this, final_shader, classinstance, a);
     }
 }

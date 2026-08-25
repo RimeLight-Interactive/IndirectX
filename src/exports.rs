@@ -2,6 +2,8 @@ use core::arch::naked_asm;
 use paste::paste;
 use std::ffi::c_void;
 
+use crate::log;
+
 
 macro_rules! naked_trampoline {
     ($name:ident) => {
@@ -62,6 +64,7 @@ pub unsafe extern "system" fn D3D11CreateDevice(
     ppImmediateContext: *mut *mut c_void
 
 ) -> i32 {
+    log!("Create Device Called");
     crate::proxy::f_create_device(
         D3_D11_CREATE_DEVICE_ORIG_PTR,
         pAdapter,
@@ -80,7 +83,7 @@ pub unsafe extern "system" fn D3D11CreateDevice(
 static mut D3_D11_CREATE_DEVICE_AND_SWAPCHAIN_ORIG_PTR: usize = 0;
 pub unsafe fn set_D3D11CreateDeviceAndSwapChain_orig(ptr: usize) {
     unsafe {
-        D3_D11_CREATE_DEVICE_ORIG_PTR = ptr;
+        D3_D11_CREATE_DEVICE_AND_SWAPCHAIN_ORIG_PTR = ptr;
     }
 }
 

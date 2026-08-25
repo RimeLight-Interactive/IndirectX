@@ -6,6 +6,10 @@ use crate::hooks::{
     swapchain::install_swapchain_hooks
 };
 use std::ffi::c_void;
+use crate::special_ops::{
+    shader_manager,
+    cbv_patch_manager
+};
 
 type D3D11CreateDeviceFn = unsafe extern "system" fn(
     pAdapter: *mut c_void,
@@ -34,7 +38,7 @@ pub unsafe extern "system" fn f_create_device(
     pFeatureLevel: *mut u32,
     ppImmediateContext: *mut *mut c_void
 ) -> i32{
-    log!("D3D11CreateDevice called");
+    log!("D3D11CreateDevice called. Original Pointer {}", orig_func);
     let orig_func: D3D11CreateDeviceFn = unsafe { std::mem::transmute(orig_func) };
     let result = unsafe {
         orig_func(
@@ -51,11 +55,23 @@ pub unsafe extern "system" fn f_create_device(
         )
     };
     log!("D3D11CreateDevice Result: {}", result);
-    log!("Creating device hooks");
-    install_device_hooks(*ppDevice);
-    log!("Creating context hooks");
-    install_context_hooks(*ppImmediateContext);
-    log!("VTable Hooks installed successfully.");
+    if result == 0 {
+        if !ppDevice.is_null() && !(*ppDevice).is_null() {
+            log!("Creating device hooks");
+            install_device_hooks(*ppDevice);
+        }
+        if !ppImmediateContext.is_null() && !(*ppImmediateContext).is_null() {
+            log!("Creating context hooks");
+            install_context_hooks(*ppImmediateContext);
+        }
+        log!("VTable Hooks installed successfully.");
+    }
+    log!("Loading replacement shaders");
+    shader_manager::reload_replacement_shaders();
+    log!("Replacement shaders loaded!");
+    log!("Loading CBV patches");
+    cbv_patch_manager::reload_and_parse();
+    log!("Successfully loaded CBV patches");
     result
 }
 
@@ -90,7 +106,6 @@ pub unsafe extern "system" fn f_create_device_and_swapchain(
     pFeatureLevel: *mut u32,
     ppImmediateContext: *mut *mut c_void
 ) -> i32{
-    log!("D3D11CreateDevice called");
     let orig_func: D3D11CreateDeviceAndSwapChainFn = unsafe { std::mem::transmute(orig_func) };
     let result = unsafe {
         orig_func(
@@ -108,13 +123,20 @@ pub unsafe extern "system" fn f_create_device_and_swapchain(
             ppImmediateContext
         )
     };
-    log!("D3D11CreateDevice Result: {}", result);
-    log!("Creating device hooks");
-    install_device_hooks(*ppDevice);
-    log!("Creating context hooks");
-    install_context_hooks(*ppImmediateContext);
-    log!("Creating swapchain hooks");
-    install_swapchain_hooks(*ppSwapChain);
-    log!("VTable Hooks installed successfully.");
+    if result == 0 {
+        if !ppDevice.is_null() && !(*ppDevice).is_null() {
+            log!("Creating device hooks");
+            install_device_hooks(*ppDevice);
+        }
+        if !ppImmediateContext.is_null() && !(*ppImmediateContext).is_null() {
+            log!("Creating context hooks");
+            install_context_hooks(*ppImmediateContext);
+        }
+        if !ppSwapChain.is_null() && !(*ppSwapChain).is_null() {
+            log!("Creating swapchain hooks");
+            install_swapchain_hooks(*ppSwapChain);
+        }
+        log!("VTable Hooks installed successfully.");
+    }
     result
 }

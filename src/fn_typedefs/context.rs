@@ -156,6 +156,13 @@ pub type CSSetConstantBuffers = unsafe extern "system" fn(
     *const *mut ID3D11Buffer,
 );
 
+pub type CSGetConstantBuffers = unsafe extern "system" fn(
+    *mut c_void,
+    u32,
+    u32,
+    *mut *mut ID3D11Buffer,
+);
+
 pub type FinishCommandList = unsafe extern "system" fn(
     *mut c_void,
     BOOL,
@@ -191,11 +198,25 @@ pub type PSSetConstantBuffers = unsafe extern "system" fn(
     *const *mut ID3D11Buffer,
 );
 
+pub type PSGetConstantBuffers = unsafe extern "system" fn(
+    *mut c_void,
+    u32,
+    u32,
+    *mut *mut ID3D11Buffer,
+);
+
 pub type VSSetConstantBuffers = unsafe extern "system" fn(
     *mut c_void,
     u32,
     u32,
     *const *mut ID3D11Buffer,
+);
+
+pub type VSGetConstantBuffers = unsafe extern "system" fn(
+    *mut c_void,
+    u32,
+    u32,
+    *mut *mut ID3D11Buffer,
 );
 
 pub type IASetVertexBuffers = unsafe extern "system" fn(
@@ -226,4 +247,22 @@ pub type ClearDepthStencilView = unsafe extern "system" fn(
     D3D11_CLEAR_FLAG,
     f32,
     u8,
+);
+
+pub type OMSetDepthStencilState = unsafe extern "system" fn(
+    *mut c_void,
+    *mut ID3D11DepthStencilState,
+    u32,
+);
+
+pub type RSSetState = unsafe extern "system" fn(
+    *mut c_void,
+    *mut ID3D11RasterizerState,
+);
+
+pub type OMSetBlendState = unsafe extern "system" fn(
+    *mut c_void,
+    *mut ID3D11BlendState,
+    *const f32,
+    u32,
 );

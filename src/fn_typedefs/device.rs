@@ -57,7 +57,7 @@ pub type CreatePixelShader = unsafe extern "system" fn(
     *mut c_void,
     *const c_void,
     usize,
-    *mut ID3D11ClassLinkage,
+    *mut c_void,
     *mut *mut ID3D11PixelShader,
 ) -> HRESULT;
 
@@ -65,7 +65,7 @@ pub type CreateComputeShader = unsafe extern "system" fn(
     *mut c_void,
     *const c_void,
     usize,
-    *mut ID3D11ClassLinkage,
+    *mut c_void,
     *mut *mut ID3D11ComputeShader,
 ) -> HRESULT;
 

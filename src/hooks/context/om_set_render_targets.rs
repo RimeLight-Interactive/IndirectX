@@ -4,6 +4,7 @@ use std::ffi::c_void;
 use windows::Win32::Graphics::{ Direct3D11::*, Dxgi::Common::DXGI_FORMAT};
 use windows_result::HRESULT;
 use windows::core::BOOL;
+use crate::log;
 
 static ORIG_FUNC: OnceLock<OMSetRenderTargets> = OnceLock::new();
 
@@ -19,6 +20,9 @@ pub fn hooked_func(
 ) {
     unsafe {
         let func = ORIG_FUNC.get().unwrap();
+        if !depthstencilview.is_null() {
+            log!("dsv: {}", depthstencilview as usize);
+        }
         func(this, a, rendertargetview, depthstencilview)
     }
 }

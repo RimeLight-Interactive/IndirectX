@@ -14,13 +14,28 @@ paste = "1.0"
 libloading = "0.9.0"
 vmt-hook = "0.2.0"
 windows-result = "0.4.1"
+arc-swap = "1.9.2"
+axum = { version = "0.8.9", features = ["macros"] }
+serde-hex = "0.1.0"
+rapidhash = "4.5.1"
+# Added "rt-multi-thread" feature so tokio::runtime::Builder::new_multi_thread() works
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "net", "macros"] }
+xxhash-rust = { version = "0.8.18", features = ["xxh3"] }
+dxbc_ir_parser = { git = "https://github.com/Ki11switch57/DXBC-IR-Parser", version = "0.1.0" }
+dxbc = "0.1.0"
+d3dasm = "0.1.0"
 
 [dependencies.windows]
 version = "0.62"
 features = [
+    "Win32_UI_WindowsAndMessaging",
     "Win32_Foundation",
+    "Win32_System_Diagnostics",
+    "Win32_System_Diagnostics_Debug",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices",
+    "Win32_System_Threading",
+    "Win32_Graphics_Direct3D_Fxc",    
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_Dxgi",
     "Win32_Graphics_Dxgi_Common",

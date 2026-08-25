@@ -13,7 +13,12 @@ pub mod get_immediate_context;
 use std::ffi::c_void;
 use crate::make_hook_map;
 
+pub static mut DEVICE: Option<*mut c_void> = None;
+
 pub fn install_device_hooks(com: *mut c_void) {
+    unsafe {
+        DEVICE = Some(com);
+    }
     let hook_map = make_hook_map!(
         (3, create_buffer),
         (5, create_texture_2d),

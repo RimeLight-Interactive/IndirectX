@@ -18,16 +18,22 @@ pub mod cs_set_shader_resources;
 pub mod cs_set_unordered_access_views;
 pub mod cs_set_shader;
 pub mod cs_set_constant_buffers;
+pub mod cs_get_constant_buffers;
 pub mod finish_command_list;
 pub mod map;
 pub mod unmap;
 pub mod ps_set_shader_resources;
 pub mod ps_set_constant_buffers;
+pub mod ps_get_constant_buffers;
 pub mod vs_set_constant_buffers;
+pub mod vs_get_constant_buffers;
 pub mod ia_set_vertex_buffers;
 pub mod ia_set_index_buffer;
 pub mod clear_render_target_view;
 pub mod clear_depth_stencil_view;
+pub mod om_set_depth_stencil_state;
+pub mod rs_set_state;
+pub mod om_set_blend_state;
 
 use std::ffi::c_void;
 use crate::make_hook_map;
@@ -54,16 +60,22 @@ pub fn install_context_hooks(com: *mut c_void) {
         (68, cs_set_unordered_access_views),
         (69, cs_set_shader),
         (71, cs_set_constant_buffers),
+        (109, cs_get_constant_buffers),
         (114, finish_command_list),
         (14, map),
         (15, unmap),
         (8, ps_set_shader_resources),
         (16, ps_set_constant_buffers),
+        (77, ps_get_constant_buffers),
         (7, vs_set_constant_buffers),
+        (72, vs_get_constant_buffers),
         (18, ia_set_vertex_buffers),
         (19, ia_set_index_buffer),
         (50, clear_render_target_view),
         (53, clear_depth_stencil_view),
+        (36, om_set_depth_stencil_state),
+        (43, rs_set_state),
+        (35, om_set_blend_state),
     );
     super::install_hooks(com, &hook_map);
 }

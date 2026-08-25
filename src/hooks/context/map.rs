@@ -1,4 +1,4 @@
-use crate::fn_typedefs::context::Map;
+use crate::{fn_typedefs::context::Map, log};
 use std::sync::OnceLock;
 use std::ffi::c_void;
 use windows::Win32::Graphics::{ Direct3D11::*, Dxgi::Common::DXGI_FORMAT};
