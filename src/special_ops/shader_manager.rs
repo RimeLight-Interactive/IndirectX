@@ -22,13 +22,17 @@ use crate::hooks::device::{
 };
 use crate::log;
 use crate::special_ops::shader_patcher;
+use super::compile_to_dxbc::{
+    shdr_to_dxbc,
+    hlsl_to_dxbc
+};
 
 // ---------------------------------------------------------------------------
 // Paths
 // ---------------------------------------------------------------------------
 
 const DUMP_BASE: &str = "./IndirectX_shaders/Dumps";
-const REPLACE_BASE: &str = "./IndirectX_shaders/Replacements/HLSL";
+const REPLACE_BASE: &str = "./IndirectX_shaders/Replacements";
 
 // ---------------------------------------------------------------------------
 // Structs & Types
@@ -90,9 +94,9 @@ impl ShaderRegistry {
             return None;
         }
 
-        let mut bytecode_slice = unsafe { std::slice::from_raw_parts(bytecode_ptr, len) };
+        let bytecode_slice = unsafe { std::slice::from_raw_parts(bytecode_ptr, len) };
         let hash = xxh3_64(bytecode_slice);
-        
+
         // 1. Store bytecode (write-once)
         if let Ok(mut bc) = self.bytecode.write() {
             bc.entry(hash).or_insert_with(|| bytecode_slice.to_vec());
@@ -188,9 +192,6 @@ impl ShaderTracker {
 
         if ptr != 0 {
             if let Some(hash) = registry.get_hash(ptr) {
-                if hash == 0x525559db2ba437a6 {
-                    log!("===============================Frame Start=====(or mid end frame)============");
-                }
                 registry.record_bind(hash);
             }
         }
@@ -441,62 +442,7 @@ pub fn get_shader_bytecode(stage: &str, hash: u64) -> Option<Vec<u8>> {
 // 5. HLSL Runtime Compiler
 // ---------------------------------------------------------------------------
 
-fn compile_hlsl_to_dxbc(source_path: &Path, target_profile: &[u8]) -> Option<Vec<u8>> {
-    let source_code = match std::fs::read_to_string(source_path) {
-        Ok(code) => code,
-        Err(e) => {
-            log!("[!] [ShaderCompiler] Failed to read {:?}: {}", source_path, e);
-            return None;
-        }
-    };
 
-    let source_name = source_path.to_str().unwrap_or("shader.hlsl");
-    let source_name_cstr = std::ffi::CString::new(source_name).unwrap_or_default();
-
-    let mut code_blob: Option<ID3DBlob> = None;
-    let mut error_blob: Option<ID3DBlob> = None;
-
-    let flags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3;
-
-    let result = unsafe {
-        D3DCompile(
-            source_code.as_ptr() as *const c_void,
-            source_code.len(),
-            PCSTR::from_raw(source_name_cstr.as_ptr() as *const u8),
-            None,
-            None,
-            PCSTR::from_raw(b"main\0".as_ptr()),
-            PCSTR::from_raw(target_profile.as_ptr()),
-            flags,
-            0,
-            &mut code_blob as *mut Option<ID3DBlob>,
-            Some(&mut error_blob as *mut Option<ID3DBlob>),
-        )
-    };
-
-    if let Err(err) = result {
-        if let Some(err_blob) = error_blob {
-            let msg = unsafe {
-                let ptr = err_blob.GetBufferPointer() as *const u8;
-                let size = err_blob.GetBufferSize();
-                String::from_utf8_lossy(std::slice::from_raw_parts(ptr, size)).into_owned()
-            };
-            log!("[!] [ShaderCompiler] Compile error in {:?}:\n{}", source_path, msg);
-        } else {
-            log!("[!] [ShaderCompiler] Unknown compile failure ({:?}) for {:?}", err, source_path);
-        }
-        return None;
-    }
-
-    let code_blob = code_blob?;
-    let bytecode = unsafe {
-        let ptr = code_blob.GetBufferPointer() as *const u8;
-        let size = code_blob.GetBufferSize();
-        std::slice::from_raw_parts(ptr, size).to_vec()
-    };
-
-    Some(bytecode)
-}
 
 // ---------------------------------------------------------------------------
 // 6. Replacement Storage & Hot Swap Engine
@@ -542,6 +488,24 @@ static CS_REPLACEMENTS: LazyLock<ReplacementMap> = LazyLock::new(ReplacementMap:
 static PS_REPLACEMENTS: LazyLock<ReplacementMap> = LazyLock::new(ReplacementMap::new);
 
 // ---------------------------------------------------------------------------
+// Helper: find ./IndirectX_shaders/Replacements/<stage>/<hash>.<any ext>
+// ---------------------------------------------------------------------------
+
+fn find_replacement_file(dir: &Path, hash: u64) -> Option<std::path::PathBuf> {
+    let prefix = format!("{:x}.", hash);
+    std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.starts_with(&prefix))
+                .unwrap_or(false)
+        })
+}
+
+// ---------------------------------------------------------------------------
 // Reload API
 // ---------------------------------------------------------------------------
 
@@ -565,21 +529,50 @@ pub fn reload_replacement_shaders() {
 
     for shader_hex in &config_guard.compute_shaders.replace {
         let hash = shader_hex.0;
-        let file_path = cs_dir.join(format!("{:x}.hlsl", hash));
 
-        if !file_path.exists() {
-            log!("[!] [ShaderManager] CS replacement missing: {:?}", file_path);
-            continue;
-        }
+        let file_path = match find_replacement_file(&cs_dir, hash) {
+            Some(p) => p,
+            None => {
+                log!("[!] [ShaderManager] CS replacement missing for {:x}", hash);
+                continue;
+            }
+        };
 
-        if let Some(bytecode) = compile_hlsl_to_dxbc(&file_path, b"cs_5_0\0") {
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let bytecode = match ext {
+            "hlsl" => hlsl_to_dxbc(&file_path, b"cs_5_0\0"),
+            "shdr" => {
+                // shdr_to_dxbc splices the raw SHDR chunk from the file into
+                // the original shader's DXBC container, preserving all other
+                // chunks (RDEF, ISGN, OSGN, …). We therefore need the
+                // original bytecode out of the registry.
+                match CS_REGISTRY.get_bytecode(hash) {
+                    Some(original) => shdr_to_dxbc(original, &file_path),
+                    None => {
+                        log!("[!] [ShaderManager] CS {:x}: original bytecode not in registry (shader never created?)", hash);
+                        continue;
+                    }
+                }
+            }
+            "asm"  => { /* TODO: assemble DXBC ASM */ continue; }
+            "txt"  => { /* TODO: treat as DXBC ASM text */ continue; }
+            "dxbc" => { /* TODO: load raw DXBC directly */ continue; }
+            other  => {
+                log!("[!] [ShaderManager] CS {:x}: unknown replacement extension '{}'", hash, other);
+                continue;
+            }
+        };
+
+        if let Some(bytecode) = bytecode {
             let new_ptr = unsafe { create_sub_cs(device_ptr, &bytecode) };
             if !new_ptr.is_null() {
                 new_cs_map.insert(hash, new_ptr as usize);
-                log!("[+] [ShaderManager] Replaced CS {:x}", hash);
+                log!("[+] [ShaderManager] Replaced CS {:x} ({})", hash, ext);
             } else {
-                log!("[!] [ShaderManager] CS object creation returned null for {:x}", hash);
+                log!("[!] [ShaderManager] CS {:x}: object creation returned null", hash);
             }
+        } else {
+            log!("[!] [ShaderManager] CS {:x}: compilation/patching failed for '{}'", hash, ext);
         }
     }
 
@@ -589,21 +582,48 @@ pub fn reload_replacement_shaders() {
 
     for shader_hex in &config_guard.pixel_shaders.replace {
         let hash = shader_hex.0;
-        let file_path = ps_dir.join(format!("{:x}.hlsl", hash));
 
-        if !file_path.exists() {
-            log!("[!] [ShaderManager] PS replacement missing: {:?}", file_path);
-            continue;
-        }
+        let file_path = match find_replacement_file(&ps_dir, hash) {
+            Some(p) => p,
+            None => {
+                log!("[!] [ShaderManager] PS replacement missing for {:x}", hash);
+                continue;
+            }
+        };
 
-        if let Some(bytecode) = compile_hlsl_to_dxbc(&file_path, b"ps_5_0\0") {
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let bytecode = match ext {
+            "hlsl" => hlsl_to_dxbc(&file_path, b"ps_5_0\0"),
+            "shdr" => {
+                // Same rationale as CS above — original container is needed
+                // to preserve all non-SHDR chunks during the splice.
+                match PS_REGISTRY.get_bytecode(hash) {
+                    Some(original) => shdr_to_dxbc(original, &file_path),
+                    None => {
+                        log!("[!] [ShaderManager] PS {:x}: original bytecode not in registry (shader never created?)", hash);
+                        continue;
+                    }
+                }
+            }
+            "asm"  => { /* TODO: assemble DXBC ASM */ continue; }
+            "txt"  => { /* TODO: treat as DXBC ASM text */ continue; }
+            "dxbc" => { /* TODO: load raw DXBC directly */ continue; }
+            other  => {
+                log!("[!] [ShaderManager] PS {:x}: unknown replacement extension '{}'", hash, other);
+                continue;
+            }
+        };
+
+        if let Some(bytecode) = bytecode {
             let new_ptr = unsafe { create_sub_ps(device_ptr, &bytecode) };
             if !new_ptr.is_null() {
                 new_ps_map.insert(hash, new_ptr as usize);
-                log!("[+] [ShaderManager] Replaced PS {:x}", hash);
+                log!("[+] [ShaderManager] Replaced PS {:x} ({})", hash, ext);
             } else {
-                log!("[!] [ShaderManager] PS object creation returned null for {:x}", hash);
+                log!("[!] [ShaderManager] PS {:x}: object creation returned null", hash);
             }
+        } else {
+            log!("[!] [ShaderManager] PS {:x}: compilation/patching failed for '{}'", hash, ext);
         }
     }
 

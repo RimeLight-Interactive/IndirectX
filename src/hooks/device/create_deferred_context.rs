@@ -17,6 +17,8 @@ pub fn hooked_func(
 ) -> HRESULT {
     unsafe {
         let func = ORIG_FUNC.get().unwrap();
-        func(this, a, devicecontext)
+        let res = func(this, a, devicecontext);
+        super::super::context::install_context_hooks(*devicecontext as *mut c_void);
+        res
     }
 }
