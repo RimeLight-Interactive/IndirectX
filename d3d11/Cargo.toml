@@ -1,0 +1,12 @@
+[package]
+name = "d3d11-proxy"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "d3d11"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+paste = "1.0.15"
+windows = "0.62.2"

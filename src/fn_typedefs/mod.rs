@@ -1,3 +1,4 @@
 pub mod device;
 pub mod context;
 pub mod swapchain;
+pub mod dxgi_factory;

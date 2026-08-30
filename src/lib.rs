@@ -37,17 +37,18 @@ pub unsafe extern "system" fn f_main(
     let config = CONFIG.get().unwrap().load();
     let _ = logger::init("IndirectX.log", config.logging, config.log_async);
     log!("IndirectX started!");
-    let dll_name = config.next_dll.as_ref().unwrap();
-    let wide: Vec<u16> = OsStr::new(&dll_name)
+    let d3d11_dll_name = config.next_d3d11_dll.as_ref().unwrap();
+    let dxgi_dll_name = config.next_dxgi_dll.as_ref().unwrap();
+    let wide: Vec<u16> = OsStr::new(&d3d11_dll_name)
         .encode_wide()
         .chain(Some(0))
         .collect();
-    log!("Loading next DLL: {}", dll_name);
+    log!("Loading next DLL: {}", d3d11_dll_name);
     DLL = Some(
         LoadLibraryW(PCWSTR(wide.as_ptr()))
             .expect("Unable to load Next DLL"),
     );
-    log!("Next DLL loaded successfully.");
+    log!("Next D3D11 DLL loaded successfully.");
     log!("Setting up exports...");
     let symbols = [
     "D3D11CoreCreateDevice",
@@ -71,9 +72,46 @@ pub unsafe extern "system" fn f_main(
             _ => log!("A Wild Symbol appeared!: {}", symbol),
         }
     }
+
+    let wide: Vec<u16> = OsStr::new(&dxgi_dll_name)
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    log!("Loading next DLL: {}", dxgi_dll_name);
+    DLL = Some(
+        LoadLibraryW(PCWSTR(wide.as_ptr()))
+            .expect("Unable to load Next DLL"),
+    );
+    log!("Next DXGI DLL loaded successfully.");
+    log!("Setting up exports...");
+    let symbols = [
+    "CreateDXGIFactory",
+    "CreateDXGIFactory1",
+    "CreateDXGIFactory2",
+    "DXGIGetDebugInterface1",
+    "DXGIDeclareAdapterRemovalSupport"
+    ];
+    
+    for symbol in symbols.iter() {
+        let symbol_cstr = std::ffi::CString::new(*symbol).unwrap();
+        let symbol_ptr = GetProcAddress(DLL.unwrap(), PCSTR(symbol_cstr.as_ptr() as *const u8))
+            .unwrap_or_else(|| panic!("Unable to get address of {}", symbol));
+        let symbol_addr = symbol_ptr as usize;
+
+        match *symbol {
+            "CreateDXGIFactory" => exports::set_CreateDXGIFactory_orig(symbol_addr),
+            "CreateDXGIFactory1" =>
+                exports::set_CreateDXGIFactory1_orig(symbol_addr),
+            "CreateDXGIFactory2" => exports::set_CreateDXGIFactory2_orig(symbol_addr),
+            "DXGIGetDebugInterface1" => exports::set_DXGIGetDebugInterface1_orig(symbol_addr),
+            "DXGIDeclareAdapterRemovalSupport" => exports::set_DXGIDeclareAdapterRemovalSupport_orig(symbol_addr),
+            _ => log!("A Wild Symbol appeared!: {}", symbol),
+        }
+    }
     log!("Exports linked!");
     log!("Attempting to start server");
     std::thread::spawn(talker::server_summoner::server_summoner);
+    log!("Successfully returning from DllMain");
     true
 }
 

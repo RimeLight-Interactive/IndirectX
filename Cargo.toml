@@ -41,3 +41,9 @@ features = [
     "Win32_Graphics_Dxgi_Common",
     "Win32_Graphics_Direct3D",
 ]
+
+[workspace]
+members = [
+    ".",
+    "d3d11", "dxgi",
+]

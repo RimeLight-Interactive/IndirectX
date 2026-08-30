@@ -3,7 +3,8 @@ use crate::log;
 use crate::hooks::{
     device::install_device_hooks,
     context::install_context_hooks,
-    swapchain::install_swapchain_hooks
+    swapchain::install_swapchain_hooks,
+    dxgi_factory::{install_dxgi_factory_hooks, install_dxgi_factory2_hooks}
 };
 use std::ffi::c_void;
 use crate::special_ops::{
@@ -138,5 +139,72 @@ pub unsafe extern "system" fn f_create_device_and_swapchain(
         }
         log!("VTable Hooks installed successfully.");
     }
+    result
+}
+
+type CreateDXGIFactoryFn = unsafe extern "system" fn(
+        *const windows::core::GUID,
+        *mut *mut c_void,
+) -> i32;
+
+type CreateDXGIFactoryFn1 = unsafe extern "system" fn(
+        *const windows::core::GUID,
+        *mut *mut c_void,
+) -> i32;
+
+type CreateDXGIFactoryFn2 = unsafe extern "system" fn(
+        u32,
+        *const windows::core::GUID,
+        *mut *mut c_void,
+) -> i32;
+
+#[no_mangle]
+pub unsafe fn f_create_dxgi_factory(
+    orig_func: usize,
+    refiid: *const windows::core::GUID,
+    pp_factory: *mut *mut c_void
+) -> i32 {
+    log!("Attempting to create dxgi_factory type 0");
+    let func: CreateDXGIFactoryFn = std::mem::transmute(orig_func);
+    let result = func(refiid, pp_factory);
+    install_dxgi_factory_hooks(*pp_factory);
+    log!("installed factory hooks!");
+    result
+}
+
+#[no_mangle]
+pub unsafe fn f_create_dxgi_factory1(
+    orig_func: usize,
+    refiid: *const windows::core::GUID,
+    pp_factory: *mut *mut c_void
+) -> i32 {
+    log!("Attempting to create dxgi_factory type 1");
+    log!("CreateDXGIFactory1");
+    log!("  refiid = {:?}", *refiid);
+    log!("  pp_factory = {:?}", pp_factory);
+    let func: CreateDXGIFactoryFn1 = std::mem::transmute(orig_func);
+    let result = func(refiid, pp_factory);
+    log!("returned result {}", result);
+    if !pp_factory.is_null() {
+        install_dxgi_factory_hooks(*pp_factory);
+        log!("installed factory hooks!");
+    }
+    result
+}
+
+#[no_mangle]
+pub unsafe fn f_create_dxgi_factory2(
+    orig_func: usize,
+    flags: u32,
+    refiid: *const windows::core::GUID,
+    pp_factory: *mut *mut c_void
+) -> i32 {
+    log!("Attempting to create dxgi_factory type 2");
+    let func: CreateDXGIFactoryFn2 = std::mem::transmute(orig_func);
+    let result = func(flags, refiid, pp_factory);
+    install_dxgi_factory_hooks(*pp_factory);
+    log!("installed factory hooks! round 1");
+    install_dxgi_factory2_hooks(*pp_factory);
+    log!("installed factory hooks! round 2");
     result
 }

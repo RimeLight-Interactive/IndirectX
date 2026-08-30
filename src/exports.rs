@@ -1,4 +1,5 @@
 use core::arch::naked_asm;
+use windows::core::GUID;
 use paste::paste;
 use std::ffi::c_void;
 
@@ -32,6 +33,8 @@ macro_rules! naked_trampoline {
 
 naked_trampoline!(D3D11CoreCreateDevice);
 naked_trampoline!(D3D11On12CreateDevice);
+naked_trampoline!(DXGIDeclareAdapterRemovalSupport);
+naked_trampoline!(DXGIGetDebugInterface1);
 
 // Main exports
 #[no_mangle]
@@ -118,4 +121,47 @@ pub unsafe extern "system" fn D3D11CreateDeviceAndSwapChain(
         pFeatureLevel,
         ppImmediateContext
     )
+}
+
+static mut CREATE_DXGI_FACTORY_ORIG_PTR: usize = 0;
+pub unsafe fn set_CreateDXGIFactory_orig(ptr: usize) {
+    unsafe {
+        CREATE_DXGI_FACTORY_ORIG_PTR = ptr;
+    }
+}
+static mut CREATE_DXGI_FACTORY1_ORIG_PTR: usize = 0;
+pub unsafe fn set_CreateDXGIFactory1_orig(ptr: usize) {
+    unsafe {
+        CREATE_DXGI_FACTORY1_ORIG_PTR = ptr;
+    }
+}
+static mut CREATE_DXGI_FACTORY2_ORIG_PTR: usize = 0;
+pub unsafe fn set_CreateDXGIFactory2_orig(ptr: usize) {
+    unsafe {
+        CREATE_DXGI_FACTORY2_ORIG_PTR = ptr;
+    }
+}
+#[no_mangle]
+pub unsafe extern "system" fn CreateDXGIFactory(
+    refiid: *const GUID,
+    pp_factory: *mut *mut c_void
+) -> i32 {
+    crate::proxy::f_create_dxgi_factory(CREATE_DXGI_FACTORY_ORIG_PTR, refiid, pp_factory)
+}
+
+#[no_mangle]
+pub unsafe extern "system" fn CreateDXGIFactory1(
+    refiid: *const GUID,
+    pp_factory: *mut *mut c_void
+) -> i32 {
+    crate::proxy::f_create_dxgi_factory1(CREATE_DXGI_FACTORY1_ORIG_PTR, refiid, pp_factory)
+}
+
+#[no_mangle]
+pub unsafe extern "system" fn CreateDXGIFactory2(
+    flags: u32,
+    refiid: *const GUID,
+    pp_factory: *mut *mut c_void
+) -> i32 {
+    crate::proxy::f_create_dxgi_factory2(CREATE_DXGI_FACTORY2_ORIG_PTR, flags, refiid, pp_factory)
 }

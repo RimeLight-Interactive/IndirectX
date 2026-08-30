@@ -12,7 +12,8 @@ pub struct Config {
     pub logging: bool,
     pub log_async: bool,
     pub dump_shaders: bool,
-    pub next_dll: Option<String>,
+    pub next_d3d11_dll: Option<String>,
+    pub next_dxgi_dll: Option<String>
 }
 
 impl Config {
@@ -57,9 +58,14 @@ impl Config {
             }
         };
 
-        if config.next_dll.is_none() {
+        if config.next_d3d11_dll.is_none() {
             let next_dll_path = "C:\\Windows\\System32\\d3d11.dll";
-            config.next_dll = Some(next_dll_path.to_string());
+            config.next_d3d11_dll = Some(next_dll_path.to_string());
+        }
+
+        if config.next_dxgi_dll.is_none() {
+            let next_dll_path = "C:\\Windows\\System32\\dxgi.dll";
+            config.next_dxgi_dll = Some(next_dll_path.to_string());
         }
 
         config

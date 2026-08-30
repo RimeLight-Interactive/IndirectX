@@ -1,6 +1,7 @@
 pub mod device;
 pub mod swapchain;
 pub mod context;
+pub mod dxgi_factory;
 
 use crate::log;
 use std::sync::{Mutex, LazyLock};

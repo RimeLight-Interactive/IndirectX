@@ -17,6 +17,7 @@ pub fn hooked_func(
     b: u32,
 ) -> HRESULT {
     unsafe {
+        log!("Present!!!");
         let func = ORIG_FUNC.get().unwrap();
         func(this, a, b)
     }
