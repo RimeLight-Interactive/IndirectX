@@ -18,10 +18,22 @@ macro_rules! naked_trampoline {
                 [<$name _ORIG_PTR>] = ptr;
             }
 
-            #[no_mangle]
+            #[cfg(target_arch = "x86")]
+            #[unsafe(no_mangle)]
             #[unsafe(naked)]
             pub unsafe extern "system" fn $name() -> ! {
-                naked_asm!(
+                core::arch::naked_asm!(
+                    "mov eax, dword ptr [{target}]",
+                    "jmp eax",
+                    target = sym [<$name _ORIG_PTR>],
+                );
+            }
+
+            #[cfg(target_arch = "x86_64")]
+            #[unsafe(no_mangle)]
+            #[unsafe(naked)]
+            pub unsafe extern "system" fn $name() -> ! {
+                core::arch::naked_asm!(
                     "mov rax, qword ptr [rip + {target}]",
                     "jmp rax",
                     target = sym [<$name _ORIG_PTR>],
