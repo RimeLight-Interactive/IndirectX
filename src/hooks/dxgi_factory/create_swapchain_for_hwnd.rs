@@ -1,4 +1,5 @@
 use crate::fn_typedefs::dxgi_factory::CreateSwapChainForHwnd;
+use crate::log;
 use std::ffi::c_void;
 use std::sync::OnceLock;
 use windows::Win32::Foundation::HWND;
@@ -26,7 +27,7 @@ pub fn hooked_func(
 ) -> HRESULT {
     unsafe {
         let func = ORIG_FUNC.get().unwrap();
-
+        log!("Intercepted swapchain creation. HWND");
         let result = func(
             this,
             device,
@@ -40,7 +41,6 @@ pub fn hooked_func(
             return result;
         }
         super::super::swapchain::install_swapchain_hooks(*pp_swapchain);
-
         result
     }
 }

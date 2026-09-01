@@ -107,6 +107,7 @@ pub unsafe extern "system" fn f_create_device_and_swapchain(
     pFeatureLevel: *mut u32,
     ppImmediateContext: *mut *mut c_void
 ) -> i32{
+    log!("D3_D11_CREATE_DEVICE_AND_SWAPCHAIN called");
     let orig_func: D3D11CreateDeviceAndSwapChainFn = unsafe { std::mem::transmute(orig_func) };
     let result = unsafe {
         orig_func(
@@ -167,8 +168,14 @@ pub unsafe fn f_create_dxgi_factory(
     log!("Attempting to create dxgi_factory type 0");
     let func: CreateDXGIFactoryFn = std::mem::transmute(orig_func);
     let result = func(refiid, pp_factory);
-    install_dxgi_factory_hooks(*pp_factory);
-    log!("installed factory hooks!");
+    if !(*pp_factory).is_null() {
+        install_dxgi_factory_hooks(*pp_factory);
+        log!("installed factory hooks!");
+        let refiid_str = format!("{:?}", *refiid);
+        if refiid_str.as_str() != "7B7166EC-21C7-44AE-B21A-C9AE321AE369" && refiid_str.as_str() != "770AAE78-F26F-4DBA-A829-253C83D1B387" {
+            install_dxgi_factory2_hooks(*pp_factory);
+        }
+    }
     result
 }
 
@@ -185,9 +192,13 @@ pub unsafe fn f_create_dxgi_factory1(
     let func: CreateDXGIFactoryFn1 = std::mem::transmute(orig_func);
     let result = func(refiid, pp_factory);
     log!("returned result {}", result);
-    if !pp_factory.is_null() {
+    if !(*pp_factory).is_null() {
         install_dxgi_factory_hooks(*pp_factory);
         log!("installed factory hooks!");
+        let refiid_str = format!("{:?}", *refiid);
+        if refiid_str.as_str() != "7B7166EC-21C7-44AE-B21A-C9AE321AE369" && refiid_str.as_str() != "770AAE78-F26F-4DBA-A829-253C83D1B387" {
+            install_dxgi_factory2_hooks(*pp_factory);
+        }
     }
     result
 }
@@ -203,8 +214,11 @@ pub unsafe fn f_create_dxgi_factory2(
     let func: CreateDXGIFactoryFn2 = std::mem::transmute(orig_func);
     let result = func(flags, refiid, pp_factory);
     install_dxgi_factory_hooks(*pp_factory);
-    log!("installed factory hooks! round 1");
-    install_dxgi_factory2_hooks(*pp_factory);
-    log!("installed factory hooks! round 2");
+    if !(*pp_factory).is_null() {
+        let refiid_str = format!("{:?}", *refiid);
+        if refiid_str.as_str() != "7B7166EC-21C7-44AE-B21A-C9AE321AE369" && refiid_str.as_str() != "770AAE78-F26F-4DBA-A829-253C83D1B387" {
+            install_dxgi_factory2_hooks(*pp_factory);
+        }
+    }
     result
 }

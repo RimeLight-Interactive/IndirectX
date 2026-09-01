@@ -4,6 +4,12 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Dxgi::*;
 use windows_result::HRESULT;
 
+pub type QueryInterface = unsafe extern "system" fn(
+    *mut c_void,
+    *const windows::core::GUID,
+    *mut *mut c_void,
+) -> HRESULT;
+
 pub type CreateSwapChain = unsafe extern "system" fn(
     *mut c_void,
     *mut c_void,

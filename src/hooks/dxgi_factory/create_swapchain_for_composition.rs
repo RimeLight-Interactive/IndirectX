@@ -1,4 +1,5 @@
 use crate::fn_typedefs::dxgi_factory::CreateSwapChainForComposition;
+use crate::log;
 use std::ffi::c_void;
 use std::sync::OnceLock;
 use windows::Win32::Graphics::Dxgi::Common::*;
@@ -19,6 +20,7 @@ pub fn hooked_func(
     pp_swapchain: *mut *mut c_void,
 ) -> HRESULT {
     unsafe {
+        log!("Intercepted swapchain creation. Composition");
         let func = ORIG_FUNC.get().unwrap();
 
         let result = func(

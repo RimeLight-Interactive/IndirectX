@@ -1,4 +1,5 @@
 use crate::fn_typedefs::dxgi_factory::CreateSwapChainForCoreWindow;
+use crate::log;
 use std::ffi::c_void;
 use std::sync::OnceLock;
 use windows::Win32::Graphics::Dxgi::Common::*;
@@ -21,7 +22,7 @@ pub fn hooked_func(
 ) -> HRESULT {
     unsafe {
         let func = ORIG_FUNC.get().unwrap();
-
+        log!("Intercepted swapchain creation. core window");
         let result = func(
             this,
             device,

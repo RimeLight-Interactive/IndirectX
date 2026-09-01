@@ -1,4 +1,5 @@
 use crate::fn_typedefs::device::CreateDeferredContext;
+use crate::log;
 use std::sync::OnceLock;
 use std::ffi::c_void;
 use windows::Win32::Graphics::Direct3D11::*;
@@ -18,7 +19,8 @@ pub fn hooked_func(
     unsafe {
         let func = ORIG_FUNC.get().unwrap();
         let res = func(this, a, devicecontext);
-        super::super::context::install_context_hooks(*devicecontext as *mut c_void);
+        log!("result: {}", res);
+        //super::super::context::install_context_hooks(*devicecontext as *mut c_void);
         res
     }
 }

@@ -18,12 +18,14 @@ pub fn hooked_func(
     pp_swapchain: *mut *mut c_void,
 ) -> HRESULT {
     unsafe {
+        log!("Intercepted swapchain creation. Normal");
         let func = ORIG_FUNC.get().unwrap();
         let result = func(this, device, desc, pp_swapchain);
         if !result.is_ok() || pp_swapchain.is_null() || (*pp_swapchain).is_null() {
             return result;
         }
         super::super::swapchain::install_swapchain_hooks(*pp_swapchain);
+        log!("installed swapchain hooks");
         result
     }
 }
